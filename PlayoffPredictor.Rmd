@@ -1,7 +1,7 @@
 ---
 title: "The Champion is Here"
 subtitle: "Predicting the 2024 College Football Playoff Bracket"
-author: "Sarah Deussing, Drew Duffy, Adam El-Kadi, Jacob Kowal, and Mitch Jeter"
+author: "Mitch Jeter"
 date: "2024-12-11"
 output: html_document
 ---
