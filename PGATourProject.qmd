@@ -1,0 +1,280 @@
+---
+title: "PGA Project"
+author: "Mitch Jeter"
+format:
+  html:
+    toc: true
+    toc-location: left
+    self-contained: true
+jupyter: python3
+---
+
+Scrape the PGA Tour Data
+
+Fetch the Webpage Content:
+```{python}
+import requests
+from bs4 import BeautifulSoup
+import pandas as pd
+import time
+
+# URL of the 2024 ESPN golf stats page
+url = "https://www.espn.com/golf/stats/player/_/season/2024"
+
+# Define a headers dictionary with a User-Agent header
+headers = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+}
+
+# Using a session to persist cookies and headers
+with requests.Session() as session:
+    session.headers.update(headers)
+    
+    time.sleep(2)  # Sleep for 2 seconds
+
+    # Send GET request with session
+    response = session.get(url)
+
+    # Parse the page content
+    soup = BeautifulSoup(response.text, 'html.parser')
+
+
+player_stats_table = soup.find('table', {'class': 'Table'})
+
+players = []
+
+if player_stats_table:
+    for row in player_stats_table.find_all('tr')[1:]:  # Skip the header row
+        cols = row.find_all('td')
+        if len(cols) > 1:  # Ensure there are columns in the row
+            player_name = cols[0].get_text(strip=True)
+            stat_1 = cols[1].get_text(strip=True)
+            stat_2 = cols[2].get_text(strip=True)
+            # Add other stats as necessary
+
+            players.append({
+                'Player': player_name,
+                'Stat 1': stat_1,
+                'Stat 2': stat_2,
+                # Add other stats
+            })
+
+df = pd.DataFrame(players)
+
+df.to_csv("golf_stats_2024.csv", index=False)
+
+print(f"Data has been saved to 'golf_stats_2024.csv'")
+```
+
+```{python}
+
+table_out = pd.read_html(url)
+pd.concat([table_out[0], table_out[1]], axis = 1)
+
+import pandas as pd
+
+table_out = pd.read_html(url)
+
+concatenated_df = pd.concat([table_out[0], table_out[1]], axis=1)
+
+concatenated_df.to_csv('golf_stats_2024_combined.csv', index=False)
+
+print("Data has been saved to 'golf_stats_2024_combined.csv'")
+
+```
+
+```{python}
+link = 'https://apiweb.owgr.com/api/owgr/rankings/getRankings?regionId=0&pageSize=100&pageNumber=1&countryId=0&sortString=Rank+ASC'
+
+link_req = requests.get(link)
+
+players = link_req.json()
+
+players = players.get('rankingsList')
+
+players_df = pd.json_normalize(players)
+
+playdf = pd.DataFrame(players_df)
+
+playdf.to_csv("owgr_2024.csv", index=False)
+```
+
+
+```{python}
+import pandas as pd
+
+# Load the combined CSV file
+df = pd.read_csv('golf_stats_2024_combined.csv')
+
+# Calculate Cut Percentage (CUTS / EVNTS)
+df['Made Cut %'] = df['CUTS'].astype(float) / df['EVNTS'].astype(float) * 100
+
+# Create a new DataFrame with Rank, Player Name, and Cut %
+rank_cut_df = df[['RK', 'Name', 'Made Cut %']]
+
+# Sort the data by Rank (RK)
+rank_cut_df = rank_cut_df.sort_values(by='RK')
+
+# Display the table
+print(rank_cut_df)
+
+```
+
+```{python}
+import pandas as pd
+
+# Load the combined CSV file
+df = pd.read_csv('golf_stats_2024_combined.csv')
+
+# Select relevant columns: Rank, Name, Driver Distance, GIR, and Putting Strokes
+driver_gir_putting_df = df[['RK', 'Name', 'DDIS', 'GIR', 'PUTTS']]
+
+# Rename columns for clarity
+driver_gir_putting_df.rename(columns={
+    'RK': 'Rank',
+    'DDIS': 'Driver Distance',
+    'GIR': 'Greens in Regulation (%)',
+    'PUTTS': 'Putting Strokes'
+}, inplace=True)
+
+# Sort by Rank
+driver_gir_putting_df = driver_gir_putting_df.sort_values(by='Rank')
+
+# Display the table
+print(driver_gir_putting_df)
+
+```
+
+```{python}
+
+import pandas as pd
+
+# Load the combined CSV file
+df = pd.read_csv('golf_stats_2024_combined.csv')
+
+# Ensure numeric columns are correctly typed
+df['TOP 10'] = pd.to_numeric(df['TOP10'], errors='coerce')
+df['EVENTS'] = pd.to_numeric(df['EVNTS'], errors='coerce')
+df['RK'] = pd.to_numeric(df['RK'], errors='coerce')
+
+# Calculate Top 10 Percentage
+df['Top 10 %'] = (df['TOP10'] / df['EVNTS']) * 100
+
+# Select relevant columns: Rank, Name, Top 10 %, and Events
+top_10_df = df[['RK', 'Name', 'Top 10 %', 'EVENTS']]
+
+# Rename columns for clarity
+top_10_df.rename(columns={
+    'RK': 'Rank',
+    'EVENTS': 'Events Played'
+}, inplace=True)
+
+# Sort by Top 10 % in descending order
+top_10_df = top_10_df.sort_values(by='Top 10 %', ascending=False)
+
+# Display top players with the highest Top 10 %
+top_10_df = top_10_df.head(10)
+
+# Display the table
+print(top_10_df)
+
+# Optionally, save this table to a new CSV file
+top_10_df.to_csv('top_10_percentage_table.csv', index=False)
+print("Table has been saved to 'top_10_percentage_table.csv'")
+
+
+```
+
+
+```{python}
+import pandas as pd
+
+# Load the combined CSV file
+df = pd.read_csv('golf_stats_2024_combined.csv')
+
+# Ensure numeric columns are correctly typed
+df['WINS'] = pd.to_numeric(df['WINS'], errors='coerce')
+df['EVENTS'] = pd.to_numeric(df['EVNTS'], errors='coerce')
+df['RK'] = pd.to_numeric(df['RK'], errors='coerce')
+
+# Calculate Win Percentage
+df['Win %'] = (df['WINS'] / df['EVNTS']) * 100
+
+# Select relevant columns: Rank, Name, Win %, and Events
+win_df = df[['RK', 'Name', 'Win %', 'EVNTS']]
+
+# Rename columns for clarity
+win_df.rename(columns={
+    'RK': 'Rank',
+    'EVNTS': 'Events Played'
+}, inplace=True)
+
+# Sort by Win % in descending order
+win_df = win_df.sort_values(by='Win %', ascending=False)
+
+# Display the table
+print(win_df[['Rank', 'Name', 'Win %', 'Events Played']])
+
+# Optionally, save this table to a new CSV file
+win_df.to_csv('win_percentage_table.csv', index=False)
+print("Table has been saved to 'win_percentage_table.csv'")
+
+```
+
+```{python}
+import pandas as pd
+
+# Load the OWGR dataset
+owgr_df = pd.read_csv('owgr_2024.csv')
+
+# Load the combined golf stats dataset
+golf_stats_df = pd.read_csv('golf_stats_2024_combined.csv')
+
+# Ensure consistent column naming for merging
+owgr_df.rename(columns={'player.fullName': 'Name'}, inplace=True)
+
+# Merge the two datasets on the player name
+combined_df = pd.merge(golf_stats_df, owgr_df, on='Name', how='inner')
+
+# Clean EARNINGS column for numeric conversion
+combined_df['EARNINGS'] = combined_df['EARNINGS'].replace({'\$': '', ',': ''}, regex=True)
+combined_df['EARNINGS'] = pd.to_numeric(combined_df['EARNINGS'], errors='coerce')
+
+
+# Convert necessary columns to numeric
+combined_df['WINS'] = pd.to_numeric(combined_df['WINS'], errors='coerce')
+combined_df['EVNTS'] = pd.to_numeric(combined_df['EVNTS'], errors='coerce')
+combined_df['TOP10'] = pd.to_numeric(combined_df['TOP10'], errors='coerce')
+combined_df['EARNINGS'] = pd.to_numeric(combined_df['EARNINGS'], errors='coerce')
+combined_df['RK'] = pd.to_numeric(combined_df['RK'], errors='coerce')  # Golf Stats Ranking
+combined_df['rank'] = pd.to_numeric(combined_df['rank'], errors='coerce')  # OWGR Ranking
+
+# Calculate Win % and Top 10 %
+combined_df['Win %'] = (combined_df['WINS'] / combined_df['EVNTS']) * 100
+combined_df['Top 10 %'] = (combined_df['TOP10'] / combined_df['EVNTS']) * 100
+
+# Clean EARNINGS column for numeric conversion
+combined_df['EARNINGS'] = combined_df['EARNINGS'].replace({'\$': '', ',': ''}, regex=True)
+combined_df['EARNINGS'] = pd.to_numeric(combined_df['EARNINGS'], errors='coerce')
+
+# Select and reorder relevant columns
+final_df = combined_df[['Name', 'rank', 'RK', 'EARNINGS', 'Win %', 'Top 10 %']]
+
+# Rename columns for clarity
+final_df.rename(columns={
+    'rank': 'OWGR Ranking',
+    'RK': 'Golf Stats Ranking',
+    'EARNINGS': 'Earnings'
+}, inplace=True)
+
+# Format EARNINGS as currency for display
+final_df['Earnings'] = final_df['Earnings'].apply(lambda x: "${:,.2f}".format(x) if pd.notnull(x) else 'N/A')
+
+# Sort by OWGR Ranking
+final_df = final_df.sort_values(by='OWGR Ranking')
+
+# Display the table
+print(final_df)
+
+```
+
